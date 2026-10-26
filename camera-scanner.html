@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QUICK RASHI — Mobile Barcode Scanner</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>body{font:15px system-ui;background:#eef5ff;color:#193858;margin:0;padding:14px}main{max-width:460px;margin:auto;background:white;padding:20px;border-radius:18px;box-shadow:0 6px 24px #1232}h2{color:#087bbd}button{background:#087bbd;color:white;border:0;border-radius:9px;padding:11px 16px;cursor:pointer;margin:5px}input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #aac;border-radius:8px}#reader{margin:15px 0}#status{padding:10px;background:#eaf6eb;border-radius:8px;min-height:50px}</style>
+</head><body><main><h2>▥ QUICK RASHI Scanner</h2><p>Secure HTTPS page. This scanner uses a temporary pairing token from the main voucher.</p>
+<div id="reader"></div><div><button id="start">📷 Enable Camera</button><button id="stop">Stop</button></div>
+<label>Manual / USB barcode input</label><input id="code" placeholder="Scan or type barcode" autocomplete="off">
+<button id="send">Send Barcode to Voucher</button><p id="status">Tap Enable Camera and allow browser permission.</p>
+</main><script>
+const qs=new URLSearchParams(location.search),token=qs.get('token')||'',endpoint=qs.get('endpoint')||'';let scanner=null,last='',time=0;
+const status=m=>document.getElementById('status').textContent=m;
+async function send(code){code=String(code||'').trim();if(!code)return status('Barcode missing');if(!token||!endpoint.startsWith('https://'))return status('Missing pairing token / Apps Script endpoint. Pair again from QUICK RASHI.');
+try{let body=new URLSearchParams({action:'QR_SCANNER_PUSH',token,barcode:code});await fetch(endpoint,{method:'POST',mode:'no-cors',body});status('Barcode submitted: '+code+'. Verify item in main voucher.');}
+catch(e){status('Network error: '+String(e.message||e));}}
+async function stop(){if(scanner){try{await scanner.stop()}catch(e){}try{scanner.clear()}catch(e){}scanner=null;}}
+document.getElementById('start').onclick=async()=>{if(!navigator.mediaDevices?.getUserMedia)return status('Camera unavailable. Use HTTPS in mobile Chrome/Safari.');if(!window.Html5Qrcode)return status('Barcode library unavailable — check internet.');
+try{await stop();status('Requesting camera permission…');let cams=await Html5Qrcode.getCameras();if(!cams.length)throw Error('No camera detected');let cam=cams.find(x=>/back|rear|environment/i.test(x.label))||cams[0];scanner=new Html5Qrcode('reader');await scanner.start(cam.id,{fps:8,qrbox:{width:220,height:150}},code=>{let t=Date.now();if(code===last&&t-time<1200)return;last=code;time=t;send(code);},()=>{});status('Camera enabled — scan CODE-128 label.');}catch(e){status('Camera error: '+String(e.message||e));}};
+document.getElementById('stop').onclick=stop;
+document.getElementById('send').onclick=()=>{send(document.getElementById('code').value);document.getElementById('code').value='';};
+document.getElementById('code').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('send').click();}};
+</script></body></html>
